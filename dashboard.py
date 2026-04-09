@@ -12,14 +12,17 @@ import os
 st.set_page_config(page_title="Mapa das Forças", layout="wide", initial_sidebar_state="collapsed")
 
 # ==========================================
-# 🤖 INTEGRAÇÃO COM IA (VERSÃO SEGURA NUVEM)
+# 🤖 INTEGRAÇÃO COM IA (VERSÃO SEGURA PARA GITHUB)
 # ==========================================
 def analisar_com_ia(prompt):
     url = "https://api.groq.com/openai/v1/chat/completions"
     
-    # O sistema buscará a chave nos 'Secrets' do Streamlit Cloud após o deploy
-    # Se não encontrar (local), usa a sua chave atual como reserva
-    api_key = st.secrets.get("GROQ_API_KEY", "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")
+    # O sistema buscará a chave no 'cofre' (Secrets) do Streamlit Cloud.
+    # Isso evita que o GitHub bloqueie seu arquivo por segurança.
+    try:
+        api_key = st.secrets["GROQ_API_KEY"]
+    except KeyError:
+        return "❌ Erro: Chave de API não configurada no painel do Streamlit Cloud (Settings > Secrets)."
 
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -41,7 +44,7 @@ def analisar_com_ia(prompt):
         response.raise_for_status()
         return response.json()["choices"][0]["message"]["content"]
     except Exception as e:
-        return f"❌ Erro na análise da IA. Verifique sua chave de API nos Secrets do Streamlit Cloud."
+        return f"❌ Erro na análise da IA: {e}"
 
 # ==========================================
 # 🎨 DICIONÁRIO DE VIRTUDES E CORES
@@ -91,7 +94,7 @@ def carregar_dados():
     nome_arquivo = "TREINAMENTO_ FORCAS_QUIPES_BD.xlsx"
     caminho_local = r"C:\Users\ELYOMIDSON.BRANDAO\OneDrive - Canel Grauna Lavoro\Documentos\python-projetos\TREINAMENTO FORCA EQUIPE\\" + nome_arquivo
     
-    # Lógica inteligente: Procura no seu PC, se não achar (GitHub), usa o arquivo local da pasta
+    # Procura no PC (local), se não achar (GitHub), usa o arquivo da pasta
     caminho_final = caminho_local if os.path.exists(caminho_local) else nome_arquivo
     
     try:
