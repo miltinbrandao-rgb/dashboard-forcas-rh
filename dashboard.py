@@ -17,8 +17,6 @@ st.set_page_config(page_title="Mapa das Forças", layout="wide", initial_sidebar
 def analisar_com_ia(prompt):
     url = "https://api.groq.com/openai/v1/chat/completions"
     
-    # O sistema buscará a chave no 'cofre' (Secrets) do Streamlit Cloud.
-    # Isso evita que o GitHub bloqueie seu arquivo por segurança.
     try:
         api_key = st.secrets["GROQ_API_KEY"]
     except KeyError:
@@ -47,16 +45,27 @@ def analisar_com_ia(prompt):
         return f"❌ Erro na análise da IA: {e}"
 
 # ==========================================
-# 🎨 DICIONÁRIO DE VIRTUDES E CORES
+# 🎨 DICIONÁRIO DE VIRTUDES E CORES ATUALIZADO
 # ==========================================
 COR_VIRTUDES = {
-    "Amor ao Aprendizado": "#89AEE1", "Critério": "#89AEE1", "Perspectiva": "#89AEE1", "Curiosidade": "#89AEE1", "Criatividade": "#89AEE1",
-    "Bravura": "#F8961E", "Perseverança": "#F8961E", "Vitalidade": "#F8961E", "Integridade": "#F8961E",
-    "Amor": "#43AA8B", "Inteligência Social": "#43AA8B", "Generosidade": "#43AA8B",
-    "Liderança": "#F9C74F", "Trabalho em Equipe": "#F9C74F", "Equidade": "#F9C74F",
-    "Humildade": "#90BE6D", "Prudência": "#90BE6D", "Perdão": "#90BE6D", "Autocontrole": "#90BE6D",
-    "Apreciação da Beleza e Excelência": "#9D4EDD", "Apreciação da Beleza": "#9D4EDD", "Humor": "#9D4EDD", "Espiritualidade": "#9D4EDD", "Esperança": "#9D4EDD", "Gratidão": "#9D4EDD"
+    # Sabedoria: #314A75
+    "Amor ao Aprendizado": "#314A75", "Critério": "#314A75", "Perspectiva": "#314A75", "Curiosidade": "#314A75", "Criatividade": "#314A75",
+    # Coragem: #FF0000
+    "Bravura": "#FF0000", "Perseverança": "#FF0000", "Vitalidade": "#FF0000", "Integridade": "#FF0000",
+    # Humanidade: #FF3399
+    "Amor": "#FF3399", "Inteligência Social": "#FF3399", "Generosidade": "#FF3399",
+    # Justiça: #663300
+    "Liderança": "#663300", "Trabalho em Equipe": "#663300", "Equidade": "#663300","Justiça": "#663300","Justiça (Imparcialidade)": "#663300",
+    # Temperança: #593190
+    "Humildade": "#593190", "Prudência": "#593190", "Perdão": "#593190", "Autocontrole": "#593190",
+    # Transcendência: #00CC66
+    "Apreciação da Beleza e Excelência": "#00CC66", "Apreciação da Beleza": "#00CC66", "Humor": "#00CC66", "Espiritualidade": "#00CC66", "Esperança": "#00CC66", "Gratidão": "#00CC66"
 }
+
+MAPA_COR_FORCA = {forca: COR_VIRTUDES.get(forca, "#A0AEC0") for forca in COR_VIRTUDES.keys()}
+
+def get_cor(forca):
+    return MAPA_COR_FORCA.get(forca, "#A0AEC0")
 
 # ==========================================
 # 🎨 INJEÇÃO DE CSS AVANÇADO
@@ -94,20 +103,29 @@ def carregar_dados():
     nome_arquivo = "TREINAMENTO_ FORCAS_QUIPES_BD.xlsx"
     caminho_local = r"C:\Users\ELYOMIDSON.BRANDAO\OneDrive - Canel Grauna Lavoro\Documentos\python-projetos\TREINAMENTO FORCA EQUIPE\\" + nome_arquivo
     
-    # Procura no PC (local), se não achar (GitHub), usa o arquivo da pasta
     caminho_final = caminho_local if os.path.exists(caminho_local) else nome_arquivo
     
     try:
         df = pd.read_excel(caminho_final)
         df.columns = [str(c).strip() for c in df.columns]
+        
         if 'TURMA' in df.columns: df.rename(columns={'TURMA': 'Turma'}, inplace=True)
         if 'Top 1' in df.columns: df.rename(columns={'Top 1': 'Força_Top1'}, inplace=True)
         
-        df['Setor'] = df['Setor'].fillna("Não Informado")
-        df['Cargo'] = df['Cargo'].fillna("Não Informado")
+        for col in ['Setor', 'Cargo', 'Gestor', 'Turma']:
+            if col in df.columns:
+                df[col] = df[col].fillna("Não Informado")
+            else:
+                df[col] = "Não Informado"
+        
         df = df.dropna(subset=['Força_Top1']) 
         
-        substituicoes = {'Criativadade': 'Criatividade', 'Perdão ': 'Perdão', 'Lierança': 'Liderança', 'Amor ': 'Amor', 'Apreciação da Beleza ': 'Apreciação da Beleza', 'Critério ': 'Critério'}
+        substituicoes = {
+            'Criativadade': 'Criatividade', 'Perdão ': 'Perdão', 
+            'Lierança': 'Liderança', 'Amor ': 'Amor', 
+            'Apreciação da Beleza ': 'Apreciação da Beleza', 'Critério ': 'Critério'
+        }
+        
         for col in df.columns:
             if 'Top ' in col or col == 'Força_Top1':
                 df[col] = df[col].astype(str).str.strip().replace(substituicoes)
@@ -119,7 +137,7 @@ def carregar_dados():
 @st.cache_data
 def preparar_dados_dispersao(df):
     colunas_top = [c for c in df.columns if 'Top ' in c or c == 'Força_Top1']
-    id_vars = [c for c in ['Colaborador', 'Turma', 'Setor', 'Cargo'] if c in df.columns]
+    id_vars = [c for c in ['Colaborador', 'Turma', 'Setor', 'Cargo', 'Gestor'] if c in df.columns]
     df_melt = df.melt(id_vars=id_vars, value_vars=colunas_top, var_name='Posicao', value_name='Força')
     df_melt = df_melt.dropna(subset=['Força'])
     df_melt = df_melt[df_melt['Força'] != 'nan']
@@ -132,7 +150,7 @@ if df_completo.empty:
     st.stop()
 
 # ==========================================
-# 📐 CABEÇALHO 
+# 📐 CABEÇALHO COM CORES ATUALIZADAS
 # ==========================================
 st.markdown("""
 <div class="header-container">
@@ -140,12 +158,12 @@ st.markdown("""
         <h1 class="header-title"><i class="fa-solid fa-layer-group" style="color: #A0AEC0;"></i> Mapa das Forças Pessoais</h1>
         <div class="header-sub">Análise baseada na estrutura de 6 Virtudes Universais do VIA Institute</div>
         <div class="virtue-badge-container">
-            <span class="virtue-badge" style="background-color: #89AEE1; color:#1A202C;">SABEDORIA</span>
-            <span class="virtue-badge" style="background-color: #F8961E;">CORAGEM</span>
-            <span class="virtue-badge" style="background-color: #43AA8B;">HUMANIDADE</span>
-            <span class="virtue-badge" style="background-color: #F9C74F; color:#1A202C;">JUSTIÇA</span>
-            <span class="virtue-badge" style="background-color: #90BE6D;">TEMPERANÇA</span>
-            <span class="virtue-badge" style="background-color: #9D4EDD;">TRANSCENDÊNCIA</span>
+            <span class="virtue-badge" style="background-color: #314A75;">SABEDORIA</span>
+            <span class="virtue-badge" style="background-color: #FF0000;">CORAGEM</span>
+            <span class="virtue-badge" style="background-color: #FF3399;">HUMANIDADE</span>
+            <span class="virtue-badge" style="background-color: #663300;">JUSTIÇA</span>
+            <span class="virtue-badge" style="background-color: #593190;">TEMPERANÇA</span>
+            <span class="virtue-badge" style="background-color: #00CC66;">TRANSCENDÊNCIA</span>
         </div>
     </div>
 </div>
@@ -159,31 +177,35 @@ st.markdown('<h4><i class="fa-solid fa-filter" style="color:#3182CE;"></i> Filtr
 turmas_unicas = sorted([str(x) for x in df_completo["Turma"].unique()])
 setores_unicos = sorted([str(x) for x in df_completo["Setor"].unique()])
 cargos_unicos = sorted([str(x) for x in df_completo["Cargo"].unique()])
+gestores_unicos = sorted([str(x) for x in df_completo["Gestor"].unique()])
 
-col_f1, col_f2, col_f3 = st.columns(3)
+col_f1, col_f2, col_f3, col_f4 = st.columns(4)
 with col_f1:
-    filtro_turma = st.multiselect("🎓 Turma", turmas_unicas, placeholder="Selecione as Turmas...")
+    filtro_turma = st.multiselect("🎓 Turma", turmas_unicas, placeholder="Filtrar Turmas...")
 with col_f2:
-    filtro_setor = st.multiselect("🏢 Setor", setores_unicos, placeholder="Selecione os Setores...")
+    filtro_setor = st.multiselect("🏢 Setor", setores_unicos, placeholder="Filtrar Setores...")
 with col_f3:
-    filtro_cargo = st.multiselect("💼 Cargo", cargos_unicos, placeholder="Selecione os Cargos...")
+    filtro_gestor = st.multiselect("👤 Gestor", gestores_unicos, placeholder="Filtrar Gestores...")
+with col_f4:
+    filtro_cargo = st.multiselect("💼 Cargo", cargos_unicos, placeholder="Filtrar Cargos...")
 
 st.markdown("<br>", unsafe_allow_html=True) 
 
-# Lógica de filtragem
 df_filtrado = df_completo.copy()
-if len(filtro_turma) > 0: df_filtrado = df_filtrado[df_filtrado["Turma"].astype(str).isin(filtro_turma)]
-if len(filtro_setor) > 0: df_filtrado = df_filtrado[df_filtrado["Setor"].astype(str).isin(filtro_setor)]
-if len(filtro_cargo) > 0: df_filtrado = df_filtrado[df_filtrado["Cargo"].astype(str).isin(filtro_cargo)]
+if filtro_turma: df_filtrado = df_filtrado[df_filtrado["Turma"].astype(str).isin(filtro_turma)]
+if filtro_setor: df_filtrado = df_filtrado[df_filtrado["Setor"].astype(str).isin(filtro_setor)]
+if filtro_gestor: df_filtrado = df_filtrado[df_filtrado["Gestor"].astype(str).isin(filtro_gestor)]
+if filtro_cargo: df_filtrado = df_filtrado[df_filtrado["Cargo"].astype(str).isin(filtro_cargo)]
 
 # ==========================================
 # 📊 PROCESSAMENTO INTELIGENTE: VISÃO TOP 5
 # ==========================================
 colunas_top5 = ['Força_Top1', 'Top 2', 'Top 3', 'Top 4', 'Top 5']
 colunas_presentes = [c for c in colunas_top5 if c in df_filtrado.columns]
+id_vars_melt = [c for c in ['Turma', 'Setor', 'Cargo', 'Gestor', 'Colaborador'] if c in df_filtrado.columns]
 
 df_top5_melted = df_filtrado.melt(
-    id_vars=['Turma', 'Setor', 'Cargo', 'Colaborador'], 
+    id_vars=id_vars_melt, 
     value_vars=colunas_presentes, 
     value_name='Forca_Ativa'
 )
@@ -191,7 +213,7 @@ df_top5_melted = df_top5_melted.dropna(subset=['Forca_Ativa'])
 df_top5_melted = df_top5_melted[df_top5_melted['Forca_Ativa'].str.strip() != '']
 
 # ==========================================
-# 📊 CÁLCULO DE KPIs (BASEADO NO TOP 5)
+# 📊 CÁLCULO DE KPIs
 # ==========================================
 total_pessoas = len(df_filtrado)
 
@@ -200,10 +222,9 @@ if total_pessoas == 0:
     st.stop()
 
 forcas_distintas = df_top5_melted["Forca_Ativa"].nunique()
-top_forca = df_top5_melted["Forca_Ativa"].mode()[0] if not df_top5_melted.empty else "N/A"
-cor_kpi = COR_VIRTUDES.get(top_forca, "#1A202C") 
+top_forca = df_filtrado["Força_Top1"].mode()[0] if not df_filtrado.empty else "N/A"
+cor_kpi = get_cor(top_forca) 
 
-# LÓGICA DO EQUILÍBRIO GLOBAL DINÂMICO
 ratio = forcas_distintas / 24
 if ratio >= 0.9: label_eq, cor_eq, angulo = "Excelente", "#38A169", 160
 elif ratio >= 0.7: label_eq, cor_eq, angulo = "Médio-Alto", "#48BB78", 120
@@ -218,7 +239,7 @@ st.markdown(f"""
 <div class="kpi-row">
     <div class="kpi-card"><div class="kpi-header"><i class="fa-solid fa-user-group" style="color:#3182CE;"></i> Pessoas (Amostra)</div><div class="kpi-value">{total_pessoas}</div></div>
     <div class="kpi-card"><div class="kpi-header"><i class="fa-solid fa-users" style="color:#E53E3E;"></i> Forças (Top 5) Distintas</div><div class="kpi-value">{forcas_distintas} <span style="font-size:20px; color:#A0AEC0;">/ 24</span></div></div>
-    <div class="kpi-card"><div class="kpi-header"><i class="fa-solid fa-trophy" style="color:{cor_kpi};"></i> Força Dominante (Top 5)</div><div class="kpi-value-small" style="color:{cor_kpi};">{top_forca}</div></div>
+    <div class="kpi-card"><div class="kpi-header"><i class="fa-solid fa-trophy" style="color:{cor_kpi};"></i> Força Dominante (Top 1)</div><div class="kpi-value-small" style="color:{cor_kpi};">{top_forca}</div></div>
     <div class="kpi-card" style="flex-direction:row; align-items:center;">
         <div><div class="kpi-header"><i class="fa-solid fa-scale-balanced" style="color:#DD6B20;"></i> Equilíbrio Global</div><div class="kpi-text-label" style="color:{cor_eq};">{label_eq}</div></div>
         <svg width="80" height="50" viewBox="0 0 100 50">
@@ -234,7 +255,7 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 📈 LINHA 1: GERAIS E DISTRIBUIÇÃO (TOP 5)
+# 📈 LINHA 1: RANKING E DISTRIBUIÇÃO (TOP 5)
 # ==========================================
 col1, col2 = st.columns([1.2, 1], gap="medium")
 
@@ -242,12 +263,12 @@ with col1:
     ranking = df_top5_melted["Forca_Ativa"].value_counts().head(10).reset_index()
     ranking.columns = ["Força", "Quantidade"]
     ranking_inv = ranking.iloc[::-1] 
-    cores_dinamicas = [COR_VIRTUDES.get(f, "#A0AEC0") for f in ranking_inv["Força"]]
     
     fig_bar = go.Figure()
-    for i, row in ranking_inv.iterrows():
+    for _, row in ranking_inv.iterrows():
+        cor_barra = get_cor(row["Força"]) 
         fig_bar.add_trace(go.Bar(
-            y=[row["Força"]], x=[row["Quantidade"]], orientation='h', marker_color=cores_dinamicas[i],
+            y=[row["Força"]], x=[row["Quantidade"]], orientation='h', marker_color=cor_barra,
             text=f"<b>{row['Quantidade']}</b>", textposition='inside', insidetextanchor='end', textfont=dict(color='white', size=13), showlegend=False, width=0.6 
         ))
         fig_bar.add_annotation(y=row["Força"], x=row["Quantidade"] + (total_pessoas*0.05), text=str(row["Quantidade"]), showarrow=False, font=dict(color="#A0AEC0", size=13), xanchor="left")
@@ -262,32 +283,29 @@ with col1:
     with st.expander("🤖 IA: Explicar o gráfico Top Forças"):
         if st.button("Gerar Análise das Forças", key="btn_ia_bar"):
             top_3 = ", ".join(ranking["Força"].head(3).tolist())
-            prompt = f"O gráfico mostra as forças predominantes na equipe considerando as 5 forças principais (Top 5) de cada indivíduo ({total_pessoas} pessoas). As 3 principais habilidades que mais aparecem na assinatura dessa equipe são: {top_3}. Explique para um gestor o que isso revela sobre o potencial do time."
-            with st.spinner("Analisando perfil comportamental..."):
+            prompt = f"O gráfico mostra as forças predominantes considerando o Top 5 de {total_pessoas} pessoas. As 3 principais são: {top_3}. O que isso revela sobre o potencial do time?"
+            with st.spinner("Analisando perfil..."):
                 st.write(analisar_com_ia(prompt))
 
 with col2:
     donut_data = df_top5_melted["Forca_Ativa"].value_counts().head(6)
-    cores_donut = [COR_VIRTUDES.get(f, "#A0AEC0") for f in donut_data.index]
+    cores_donut = [get_cor(f) for f in donut_data.index]
     total_total_forcas = len(df_top5_melted)
     
-    fig_pie = go.Figure(data=[go.Pie(labels=donut_data.index, values=donut_data.values, hole=0.65, textinfo='none', marker=dict(colors=cores_donut, line=dict(color='#FFFFFF', width=2)))])
-    fig_pie.add_annotation(x=0.28, y=0.5, text=str(total_pessoas), font=dict(size=42, color='#1A202C', weight="bold"), showarrow=False)
-    fig_pie.add_annotation(x=0.28, y=0.38, text="Pessoas", font=dict(size=14, color='#718096'), showarrow=False)
+    fig_pie = go.Figure(data=[go.Pie(
+        labels=donut_data.index, values=donut_data.values, hole=0.65, textinfo='none', 
+        marker=dict(colors=cores_donut, line=dict(color='#FFFFFF', width=2))
+    )])
+
+    fig_pie.add_annotation(x=0.5, y=0.5, text=str(total_pessoas), font=dict(size=42, color='#1A202C', weight="bold"), showarrow=False, xanchor="center")
+    fig_pie.add_annotation(x=0.5, y=0.38, text="Pessoas", font=dict(size=14, color='#718096'), showarrow=False, xanchor="center")
+
     fig_pie.update_layout(
         title=dict(text='<b>🔍 Distribuição Principal (Análise do Top 5)</b>', font=dict(size=16, color='#2D3748'), x=0.05, y=0.95),
         paper_bgcolor='#FFFFFF', plot_bgcolor='#FFFFFF', height=400, margin=dict(l=10, r=30, t=60, b=20), 
-        showlegend=True, legend=dict(orientation="v", x=0.65, y=0.5, font=dict(size=12, color='#4A5568'))
+        showlegend=True, legend=dict(orientation="v", x=0.85, y=0.5, font=dict(size=12, color='#4A5568'))
     )
     st.plotly_chart(fig_pie, use_container_width=True, theme=None, config={'displayModeBar': False})
-    
-    with st.expander("🤖 IA: Explicar o gráfico de Distribuição"):
-        if st.button("Gerar Análise da Distribuição", key="btn_ia_donut"):
-            principal = donut_data.index[0]
-            pct = round((donut_data.values[0] / total_total_forcas) * 100, 1)
-            prompt = f"O gráfico analisa o conjunto do Top 5 da equipe. A força '{principal}' representa {pct}% das ocorrências mapeadas. Como ler essa distribuição cultural?"
-            with st.spinner("Lendo distribuição da equipe..."):
-                st.write(analisar_com_ia(prompt))
 
 # ==========================================
 # 🧠 LINHA 2: RADAR E PONTOS CEGOS
@@ -310,13 +328,8 @@ with col3:
             showlegend=True, legend=dict(orientation="h", y=-0.1, x=0.1)
         )
         st.plotly_chart(fig_radar, use_container_width=True, theme=None, config={'displayModeBar': False})
-        with st.expander("🤖 IA: Como ler a Sinergia do Radar?"):
-            if st.button("Gerar Análise de Sinergia", key="btn_ia_radar"):
-                prompt = f"O gráfico de radar do Top 5 mostra as forças: {', '.join(categorias)}. Explique o que essa combinação revela sobre a sinergia deles."
-                with st.spinner("Analisando sinergia do time..."):
-                    st.write(analisar_com_ia(prompt))
     else:
-        st.info("💡 A amostra filtrada possui poucas forças para gerar o Radar de Sinergia.")
+        st.info("💡 Poucas forças para gerar o Radar de Sinergia.")
 
 with col4:
     df_melted_all = preparar_dados_dispersao(df_filtrado)
@@ -326,32 +339,24 @@ with col4:
             bottom_counts = df_bottom['Força'].value_counts().head(6).reset_index()
             bottom_counts.columns = ["Força", "Quantidade"]
             bottom_counts_inv = bottom_counts.iloc[::-1] 
-            cores_bottom = [COR_VIRTUDES.get(f, "#A0AEC0") for f in bottom_counts_inv["Força"]]
+            
             fig_bottom = go.Figure()
-            for i, row in bottom_counts_inv.iterrows():
+            for _, row in bottom_counts_inv.iterrows():
+                cor_barra = get_cor(row["Força"])
                 fig_bottom.add_trace(go.Bar(
-                    y=[row["Força"]], x=[row["Quantidade"]], orientation='h', marker_color=cores_bottom[i],
+                    y=[row["Força"]], x=[row["Quantidade"]], orientation='h', marker_color=cor_barra,
                     text=f"<b>{row['Quantidade']}</b>", textposition='inside', insidetextanchor='end', textfont=dict(color='white', size=13), showlegend=False, width=0.6 
                 ))
                 fig_bottom.add_annotation(y=row["Força"], x=row["Quantidade"] + (total_pessoas*0.02), text=str(row["Quantidade"]), showarrow=False, font=dict(color="#A0AEC0", size=13), xanchor="left")
             fig_bottom.update_layout(
-                title=dict(text='<b>Forças Botton da Equipe</b><br><span style="font-size:12px; color:#718096; font-weight:normal;">Forças mais frequentes nas últimas posições (Top 20 a 24)</span>', font=dict(size=16, color='#2D3748'), x=0.05, y=0.95),
+                title=dict(text='<b>Forças Bottom da Equipe</b>', font=dict(size=16, color='#2D3748'), x=0.05, y=0.95),
                 paper_bgcolor='#FFFFFF', plot_bgcolor='#FFFFFF', height=380, margin=dict(l=150, r=40, t=80, b=20),
-                xaxis=dict(showgrid=False, zeroline=False, showticklabels=False), 
-                yaxis=dict(showgrid=False, tickfont=dict(color="#4A5568", size=12), automargin=True)
+                xaxis=dict(showgrid=False, zeroline=False, showticklabels=False), yaxis=dict(showgrid=False, tickfont=dict(size=12), automargin=True)
             )
             st.plotly_chart(fig_bottom, use_container_width=True, theme=None, config={'displayModeBar': False})
-            with st.expander("🤖 IA: Explicar as Forças Bottons"):
-                if st.button("Gerar Análise das Fraquezas", key="btn_ia_bottom"):
-                    bottom_3 = ", ".join(bottom_counts["Força"].head(3).tolist())
-                    prompt = f"As maiores deficiências mapeadas foram: {bottom_3}. Explique os riscos de não ter essas forças."
-                    with st.spinner("Mapeando zonas de atenção..."):
-                        st.write(analisar_com_ia(prompt))
-        else:
-            st.info("💡 Não há dados suficientes nas colunas Top 20 a Top 24.")
 
 # ==========================================
-# 🔥 LINHA 3: MAPA DE CALOR (TOP 5)
+# 🔥 LINHA 3: MAPA DE CALOR
 # ==========================================
 st.write("---") 
 st.markdown("### 🔥 Mapa de Calor: Forças (Top 5) vs. Turmas")
@@ -368,28 +373,20 @@ if not df_top5_melted.empty:
             textfont={"size":14, "color":"#1A202C"}, showscale=False, xgap=3, ygap=3
         ))
         fig_heat.update_layout(
-            paper_bgcolor='#FFFFFF', plot_bgcolor='#FFFFFF', height=350,
-            margin=dict(l=150, r=40, t=20, b=40),
-            yaxis=dict(autorange="reversed", tickfont=dict(size=13, color="#4A5568")),
-            xaxis=dict(tickfont=dict(size=13, color="#4A5568"), side="bottom")
+            paper_bgcolor='#FFFFFF', plot_bgcolor='#FFFFFF', height=350, margin=dict(l=150, r=40, t=20, b=40),
+            yaxis=dict(autorange="reversed", tickfont=dict(size=13)), xaxis=dict(tickfont=dict(size=13), side="bottom")
         )
         st.plotly_chart(fig_heat, use_container_width=True, theme=None, config={'displayModeBar': False})
-        with st.expander("🤖 IA: Explicar o Mapa de Calor"):
-            if st.button("Gerar Análise do Heatmap", key="btn_ia_heat"):
-                prompt = f"O gráfico de Mapa de Calor cruza o Top 5 das forças com as Turmas. Explique como identificar 'bolhas de perfil comportamental' aqui."
-                with st.spinner("Analisando concentrações..."):
-                    st.write(analisar_com_ia(prompt))
 
 # ==========================================
 # 📋 TABELA DE DADOS (VISÃO DETALHADA)
 # ==========================================
 st.write("---") 
 st.markdown("### 📋 Visão Detalhada dos Colaboradores")
-colunas_tabela = ['Turma', 'Colaborador', 'Setor', 'Cargo', 'Força_Top1', 'Top 2', 'Top 3', 'Top 4', 'Top 5']
+colunas_tabela = ['Turma', 'Colaborador', 'Gestor', 'Setor', 'Cargo', 'Força_Top1', 'Top 2', 'Top 3', 'Top 4', 'Top 5']
 colunas_disponiveis = [col for col in colunas_tabela if col in df_filtrado.columns]
 df_tabela = df_filtrado[colunas_disponiveis].copy()
-if 'Força_Top1' in df_tabela.columns:
-    df_tabela = df_tabela.rename(columns={'Força_Top1': 'Top 1'})
+if 'Força_Top1' in df_tabela.columns: df_tabela = df_tabela.rename(columns={'Força_Top1': 'Top 1'})
 df_tabela = df_tabela.reset_index(drop=True)
 df_tabela.index += 1 
 st.dataframe(df_tabela, use_container_width=True)
